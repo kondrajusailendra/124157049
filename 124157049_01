@@ -1,41 +1,61 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 
-const Appss = () => {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const App = () => {
+  const [numbers, setNumbers] = useState([]);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    
-    axios.get( "http://localhost:port/numbers" +
-    "?url=http://20.244.56.144/numbers/primes" +
-    "&url=http://20.244.56.144/numbers/fibo" +
-    "&url=http://20.244.56.144/numbers/odd")
-      .then((response) => {
-        setData(response.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err);
-        setLoading(false);
-      });
-  }, []);
+  const handleGetNumbers = async () => {
+    const urlList = [
+        "http://localhost:port/numbers" +
+        "?url=http://20.244.56.144/numbers/primes" +
+        "&url=http://20.244.56.144/numbers/fibo" +
+        "&url=http://20.244.56.144/numbers/odd"
+    ];
+
+    const requests = urlList.map((url) =>
+      axios
+        .get(url, { timeout: 500 })
+        .then((response) => response.data.numbers)
+        .catch((error) => {
+          console.error(`Error fetching numbers from ${url}:`, error);
+          return [];
+        })
+    );
+
+    const responses = await Promise.all(
+      requests.map((request) =>
+        Promise.race([
+          request,
+          new Promise((resolve, reject) =>
+            setTimeout(() => reject(new Error("Timeout")), 500)
+          ),
+        ])
+      )
+    );
+
+    const validNumbers = responses
+      .filter((response) => response instanceof Array)
+      .map((response) => response)
+      .flat();
+
+    const uniqueNumbers = Array.from(new Set(validNumbers));
+    const sortedNumbers = uniqueNumbers.sort((a, b) => a - b);
+    setNumbers(sortedNumbers);
+    setError("");
+  };
 
   return (
     <div>
-      <h1>API Data Example</h1>
-      {loading ? (
-        <p>Loading...</p>
-      ) : error ? (
-        <p>Error: {error.message}</p>
-      ) : (
+      <h1>Number </h1>
+      <button onClick={handleGetNumbers}>click on this</button>
+      {error && <p>{error}</p>}
+      {numbers.length > 0 && (
         <div>
-          <h2>Data from API:</h2>
+          <h2>Numbers</h2>
           <ul>
-            {data.map((item) => (
-              <li key={item.id}>{item.name}</li>
+            {numbers.map((number) => (
+              <li key={number}>{number}</li>
             ))}
           </ul>
         </div>
@@ -43,4 +63,5 @@ const Appss = () => {
     </div>
   );
 };
-export default Appss;
+
+export default App;
